@@ -1,0 +1,167 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+h2 {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #e6e8ec;
+}
+
+.dropzone {
+  border: 2px dashed #34394a;
+  border-radius: 10px;
+  padding: 20px 12px;
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s;
+  cursor: pointer;
+}
+
+.dropzone.dragging {
+  border-color: #6c8dff;
+  background: rgba(108, 141, 255, 0.08);
+}
+
+.dropzone-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #a8adba;
+}
+
+.icon {
+  font-size: 22px;
+}
+
+.hint {
+  font-size: 11px;
+  color: #6b7180;
+}
+
+.status {
+  margin: 12px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.status.uploading {
+  background: rgba(108, 141, 255, 0.12);
+  color: #8fa8ff;
+}
+
+.status.success {
+  background: rgba(59, 201, 128, 0.12);
+  color: #4fd68a;
+}
+
+.status.error {
+  background: rgba(255, 90, 90, 0.12);
+  color: #ff8080;
+}
+
+.doc-list {
+  flex: 1;
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.empty {
+  color: #6b7180;
+  font-size: 13px;
+  text-align: center;
+  margin-top: 24px;
+}
+
+.doc-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: #181b22;
+  border: 1px solid #23262f;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.doc-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.doc-name {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-meta {
+  font-size: 11px;
+  color: #6b7180;
+}
+
+.delete-btn {
+  background: transparent;
+  border: none;
+  color: #6b7180;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.delete-btn:hover {
+  background: rgba(255, 90, 90, 0.12);
+  color: #ff8080;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.secondary-btn,
+.danger-btn {
+  flex: 1;
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid #34394a;
+  background: #181b22;
+  color: #c7cad1;
+}
+
+.secondary-btn:hover:not(:disabled) {
+  border-color: #6c8dff;
+  color: #8fa8ff;
+}
+
+.danger-btn:hover:not(:disabled) {
+  border-color: #ff5a5a;
+  color: #ff8080;
+}
+
+.secondary-btn:disabled,
+.danger-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

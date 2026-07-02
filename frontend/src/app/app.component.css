@@ -1,0 +1,28 @@
+.layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  height: 100vh;
+}
+
+.sidebar {
+  border-right: 1px solid #23262f;
+  background: #14161c;
+  overflow: hidden;
+}
+
+.main {
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid #23262f;
+    max-height: 40vh;
+  }
+}

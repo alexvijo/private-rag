@@ -1,0 +1,71 @@
+<section class="chat">
+  <header class="chat-header">
+    <div>
+      <h1>RAG Chat</h1>
+      <p class="subtitle">Chatea con tus documentos</p>
+    </div>
+    <span class="provider-badge">LLM: {{ llmProvider() }}</span>
+  </header>
+
+  <div class="messages">
+    @if (messages().length === 0) {
+      <div class="empty-state">
+        <p>👋 Sube documentos en el panel lateral y hazme preguntas sobre su contenido.</p>
+        <p class="empty-hint">Solo respondo con información encontrada en tus documentos.</p>
+      </div>
+    }
+
+    @for (msg of messages(); track $index) {
+      <div class="message" [class.user]="msg.role === 'user'" [class.assistant]="msg.role === 'assistant'">
+        <div class="bubble" [class.no-context]="msg.hasSufficientContext === false">
+          <p class="msg-text">{{ msg.text }}</p>
+
+          @if (msg.sources && msg.sources.length > 0) {
+            <button class="sources-toggle" (click)="toggleSources($index)">
+              {{ expandedSources.has($index) ? 'Ocultar fuentes' : 'Ver ' + msg.sources.length + ' fuente(s)' }}
+            </button>
+
+            @if (expandedSources.has($index)) {
+              <div class="sources-list">
+                @for (src of msg.sources; track src.chunk_index) {
+                  <div class="source-item">
+                    <div class="source-header">
+                      <span class="source-file">{{ src.filename }}</span>
+                      <span class="source-score">relevancia {{ (src.score * 100).toFixed(0) }}%</span>
+                    </div>
+                    @if (src.location) {
+                      <span class="source-location">{{ src.location }}</span>
+                    }
+                    <p class="source-text">{{ src.text }}</p>
+                  </div>
+                }
+              </div>
+            }
+          }
+        </div>
+      </div>
+    }
+
+    @if (isThinking()) {
+      <div class="message assistant">
+        <div class="bubble thinking">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        </div>
+      </div>
+    }
+
+    <div #scrollAnchor></div>
+  </div>
+
+  <div class="composer">
+    <textarea
+      [(ngModel)]="currentQuestion"
+      (keydown)="onKeydown($event)"
+      placeholder="Escribe tu pregunta sobre los documentos..."
+      rows="1"
+    ></textarea>
+    <button class="send-btn" (click)="sendQuestion()" [disabled]="!currentQuestion.trim() || isThinking()">
+      Enviar
+    </button>
+  </div>
+</section>

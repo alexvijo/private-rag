@@ -1,0 +1,65 @@
+<aside class="panel">
+  <h2>Documentos</h2>
+
+  <div
+    class="dropzone"
+    [class.dragging]="isDragging()"
+    (dragover)="onDragOver($event)"
+    (dragleave)="onDragLeave($event)"
+    (drop)="onDrop($event)"
+  >
+    <input
+      type="file"
+      id="file-input"
+      multiple
+      [accept]="acceptedFormats"
+      (change)="onFileSelected($event)"
+      hidden
+    />
+    <label for="file-input" class="dropzone-label">
+      <span class="icon">⬆</span>
+      <span>Arrastra archivos aquí o haz clic para seleccionar</span>
+      <span class="hint">PDF, DOCX, XLSX, TXT, CSV</span>
+    </label>
+  </div>
+
+  @if (isUploading()) {
+    <p class="status uploading">Subiendo e indexando...</p>
+  }
+
+  @if (statusMessage()) {
+    <p class="status success">{{ statusMessage() }}</p>
+  }
+
+  @if (errorMessages().length > 0) {
+    <div class="status error">
+      @for (err of errorMessages(); track err) {
+        <p>{{ err }}</p>
+      }
+    </div>
+  }
+
+  <div class="doc-list">
+    @if (documents().length === 0) {
+      <p class="empty">No hay documentos indexados todavía.</p>
+    }
+    @for (doc of documents(); track doc.doc_id) {
+      <div class="doc-item">
+        <div class="doc-info">
+          <span class="doc-name" [title]="doc.filename">{{ doc.filename }}</span>
+          <span class="doc-meta">{{ doc.chunk_count }} chunks · {{ formatSize(doc.size_bytes) }}</span>
+        </div>
+        <button class="delete-btn" (click)="deleteDocument(doc.doc_id)" title="Eliminar documento">✕</button>
+      </div>
+    }
+  </div>
+
+  <div class="actions">
+    <button class="secondary-btn" (click)="reindexAll()" [disabled]="documents().length === 0">
+      Reindexar todo
+    </button>
+    <button class="danger-btn" (click)="clearAll()" [disabled]="documents().length === 0">
+      Borrar índice
+    </button>
+  </div>
+</aside>
