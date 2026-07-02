@@ -34,6 +34,7 @@ class DeleteResponse(BaseModel):
 class ChatRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=2000)
     top_k: int | None = Field(default=None, ge=1, le=20)
+    model: str | None = Field(default=None, description="Override del modelo LLM para esta pregunta")
 
 
 class SourceChunk(BaseModel):
@@ -61,5 +62,13 @@ class ReindexResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     llm_provider: str
+    llm_model: str
+    llm_reachable: bool
     documents_indexed: int
     total_chunks: int
+
+
+class ModelsResponse(BaseModel):
+    provider: str
+    current_model: str
+    available_models: list[str] = Field(default_factory=list)

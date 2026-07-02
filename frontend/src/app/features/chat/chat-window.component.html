@@ -4,7 +4,29 @@
       <h1>RAG Chat</h1>
       <p class="subtitle">Chatea con tus documentos</p>
     </div>
-    <span class="provider-badge">LLM: {{ llmProvider() }}</span>
+    <div class="header-controls">
+      <span
+        class="health-badge"
+        [class.ok]="healthState() === 'ok'"
+        [class.degraded]="healthState() === 'degraded'"
+        [class.error]="healthState() === 'error'"
+        [class.checking]="healthState() === 'checking'"
+        [title]="healthState() === 'ok' ? 'Backend y LLM operativos' : healthState() === 'degraded' ? 'Backend activo pero el LLM no responde' : healthState() === 'error' ? 'No se pudo contactar con el backend' : 'Comprobando estado...'"
+      >
+        <span class="health-dot"></span>
+        {{ healthState() === 'ok' ? 'Operativo' : healthState() === 'degraded' ? 'LLM no disponible' : healthState() === 'error' ? 'Sin conexión' : 'Comprobando...' }}
+      </span>
+
+      @if (availableModels().length > 0) {
+        <select class="model-select" [(ngModel)]="selectedModel" title="Modelo LLM a usar">
+          @for (m of availableModels(); track m) {
+            <option [value]="m">{{ m }}</option>
+          }
+        </select>
+      } @else {
+        <span class="provider-badge">{{ llmProvider() }}: {{ llmModel() }}</span>
+      }
+    </div>
   </header>
 
   <div class="messages">
@@ -64,8 +86,12 @@
       placeholder="Escribe tu pregunta sobre los documentos..."
       rows="1"
     ></textarea>
-    <button class="send-btn" (click)="sendQuestion()" [disabled]="!currentQuestion.trim() || isThinking()">
-      Enviar
-    </button>
+    @if (isThinking()) {
+      <button class="stop-btn" (click)="stopRequest()">Detener</button>
+    } @else {
+      <button class="send-btn" (click)="sendQuestion()" [disabled]="!currentQuestion.trim()">
+        Enviar
+      </button>
+    }
   </div>
 </section>

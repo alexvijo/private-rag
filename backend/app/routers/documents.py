@@ -15,8 +15,6 @@ from app.models.schemas import (
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
-MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024  # 25 MB por archivo
-
 
 @router.post("/upload", response_model=UploadResponse)
 async def upload_documents(rag_service: RagServiceDep, files: list[UploadFile] = File(...)) -> UploadResponse:
@@ -27,9 +25,6 @@ async def upload_documents(rag_service: RagServiceDep, files: list[UploadFile] =
     for file in files:
         try:
             content = await file.read()
-            if len(content) > MAX_FILE_SIZE_BYTES:
-                errors.append(f"{file.filename}: excede el tamaño máximo de 25MB.")
-                continue
             if not content:
                 errors.append(f"{file.filename}: el archivo está vacío.")
                 continue

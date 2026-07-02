@@ -179,7 +179,9 @@ class RagService:
     # ------------------------------------------------------------------ #
     # Retrieval + generación
     # ------------------------------------------------------------------ #
-    def answer_question(self, question: str, top_k: int | None = None) -> ChatResponse:
+    def answer_question(
+        self, question: str, top_k: int | None = None, model: str | None = None
+    ) -> ChatResponse:
         k = top_k or self.settings.top_k
         query_embedding = self.embedder.embed_query(question)
         retrieved = self.store.query(query_embedding, top_k=k)
@@ -208,7 +210,7 @@ class RagService:
         user_prompt = build_user_prompt(question, context_blocks)
 
         try:
-            llm = get_llm_client(self.settings)
+            llm = get_llm_client(self.settings, model_override=model)
             answer = llm.generate(SYSTEM_PROMPT, user_prompt, self.settings.llm_temperature)
         except LLMError as exc:
             logger.error("Error del LLM: %s", exc)
@@ -236,3 +238,19 @@ class RagService:
 
     def stats(self) -> tuple[int, int]:
         return len(self._registry), self.store.count_chunks()
+
+    def list_available_models(self) -> list[str]:
+        """Modelos disponibles en el proveedor LLM actual (solo Ollama expone listado)."""
+        if self.settings.llm_provider.lower() != "ollama":
+            return []
+        llm = get_llm_client(self.settings)
+        return llm.list_models()
+
+    def check_llm_reachable(self) -> bool:
+        """Comprueba si el proveedor LLM configurado responde, sin generar texto."""
+        try:
+            if self.settings.llm_provider.lower() == "ollama":
+                get_llm_client(self.settings).list_models()
+            return True
+        except LLMError:
+            return False

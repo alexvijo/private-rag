@@ -59,6 +59,16 @@ class OllamaClient(LLMClient):
         except (KeyError, ValueError) as exc:
             raise LLMError(f"Respuesta inesperada de Ollama: {exc}") from exc
 
+    def list_models(self) -> list[str]:
+        """Consulta los modelos disponibles en el servidor Ollama activo (`ollama list`)."""
+        try:
+            response = httpx.get(f"{self.base_url}/api/tags", timeout=5)
+            response.raise_for_status()
+            data = response.json()
+            return sorted(m["name"] for m in data.get("models", []))
+        except (httpx.HTTPError, KeyError, ValueError) as exc:
+            raise LLMError(f"No se pudo listar los modelos de Ollama: {exc}") from exc
+
 
 class OpenAIClient(LLMClient):
     def __init__(self, api_key: str, model: str):
@@ -87,11 +97,15 @@ class OpenAIClient(LLMClient):
             raise LLMError(f"Error al llamar a OpenAI: {exc}") from exc
 
 
-def get_llm_client(settings: Settings) -> LLMClient:
-    """Factory que instancia el cliente LLM según LLM_PROVIDER."""
+def get_llm_client(settings: Settings, model_override: str | None = None) -> LLMClient:
+    """Factory que instancia el cliente LLM según LLM_PROVIDER.
+
+    `model_override` permite elegir un modelo distinto al de .env para una
+    request puntual (p.ej. el selector de modelos de Ollama en el frontend).
+    """
     provider = settings.llm_provider.lower()
     if provider == "ollama":
-        return OllamaClient(settings.ollama_base_url, settings.ollama_model)
+        return OllamaClient(settings.ollama_base_url, model_override or settings.ollama_model)
     if provider == "openai":
-        return OpenAIClient(settings.openai_api_key, settings.openai_model)
+        return OpenAIClient(settings.openai_api_key, model_override or settings.openai_model)
     raise LLMError(f"LLM_PROVIDER desconocido: '{provider}'. Usa 'ollama' u 'openai'.")

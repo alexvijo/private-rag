@@ -25,6 +25,12 @@ h1 {
   color: #6b7180;
 }
 
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .provider-badge {
   font-size: 11px;
   background: #181b22;
@@ -33,6 +39,71 @@ h1 {
   padding: 5px 10px;
   border-radius: 999px;
   white-space: nowrap;
+}
+
+.health-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  background: #181b22;
+  border: 1px solid #34394a;
+  color: #a8adba;
+  padding: 5px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.health-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #6b7180;
+}
+
+.health-badge.checking .health-dot {
+  background: #6b7180;
+  animation: pulse 1.2s infinite ease-in-out;
+}
+
+.health-badge.ok {
+  border-color: #1f5a34;
+  color: #7fd8a0;
+}
+.health-badge.ok .health-dot {
+  background: #3ecb71;
+}
+
+.health-badge.degraded {
+  border-color: #5a4a1f;
+  color: #e0c072;
+}
+.health-badge.degraded .health-dot {
+  background: #d2a028;
+}
+
+.health-badge.error {
+  border-color: #5a1f29;
+  color: #e08a94;
+}
+.health-badge.error .health-dot {
+  background: #d23f4f;
+}
+
+.model-select {
+  font-size: 11px;
+  background: #181b22;
+  border: 1px solid #34394a;
+  color: #8fa8ff;
+  padding: 5px 8px;
+  border-radius: 999px;
+  max-width: 180px;
+  cursor: pointer;
+}
+
+.model-select:focus {
+  outline: none;
+  border-color: #6c8dff;
 }
 
 .messages {
@@ -237,4 +308,19 @@ textarea:focus {
 .send-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.stop-btn {
+  background: #a8283a;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 0 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.stop-btn:hover {
+  background: #c23348;
 }

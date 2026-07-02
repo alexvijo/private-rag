@@ -33,6 +33,7 @@ export interface SourceChunk {
 export interface ChatRequest {
   question: string;
   top_k?: number;
+  model?: string;
 }
 
 export interface ChatResponse {
@@ -44,8 +45,16 @@ export interface ChatResponse {
 export interface HealthResponse {
   status: string;
   llm_provider: string;
+  llm_model: string;
+  llm_reachable: boolean;
   documents_indexed: number;
   total_chunks: number;
+}
+
+export interface ModelsResponse {
+  provider: string;
+  current_model: string;
+  available_models: string[];
 }
 
 export interface ChatMessage {
