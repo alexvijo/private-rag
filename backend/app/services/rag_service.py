@@ -19,6 +19,7 @@ from app.config import Settings
 from app.embeddings.embedder import get_embedder
 from app.generation.llm_client import LLMError, get_llm_client
 from app.generation.prompt import NO_CONTEXT_ANSWER, SYSTEM_PROMPT, build_user_prompt
+from app.generation.token_counter import count_tokens
 from app.ingestion.chunking import chunk_segments
 from app.ingestion.parsers import (
     DocumentParseError,
@@ -193,15 +194,16 @@ class RagService:
             )
 
         context_blocks = []
-        total_chars = 0
+        total_tokens = 0
         used_chunks = []
         for r in relevant:
             block = f"[Fuente: {r.filename}, {r.location}]\n{r.text}"
-            if total_chars + len(block) > self.settings.max_context_chars and used_chunks:
+            block_tokens = count_tokens(block)
+            if total_tokens + block_tokens > self.settings.max_context_tokens and used_chunks:
                 break
             context_blocks.append(block)
             used_chunks.append(r)
-            total_chars += len(block)
+            total_tokens += block_tokens
 
         user_prompt = build_user_prompt(question, context_blocks)
 

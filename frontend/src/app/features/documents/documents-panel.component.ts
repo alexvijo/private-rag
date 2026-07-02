@@ -19,7 +19,7 @@ export class DocumentsPanelComponent implements OnInit {
   errorMessages = signal<string[]>([]);
   statusMessage = signal<string | null>(null);
 
-  readonly acceptedFormats = '.pdf,.docx,.xlsx,.xls,.txt,.csv';
+  readonly acceptedFormats = '.pdf,.docx,.xlsx,.xls,.txt,.csv,.epub';
 
   ngOnInit(): void {
     this.refreshDocuments();

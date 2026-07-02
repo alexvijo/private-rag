@@ -37,7 +37,7 @@ class Settings(BaseSettings):
 
     # Generación
     llm_temperature: float = 0.1
-    max_context_chars: int = 6000
+    max_context_tokens: int = 3000
 
     @property
     def cors_origins_list(self) -> list[str]:

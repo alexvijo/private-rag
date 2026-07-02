@@ -1,7 +1,7 @@
 # RAG Chat — Chat inteligente sobre tus documentos
 
 Aplicación RAG (Retrieval-Augmented Generation) completa y lista para ejecutar: sube documentos
-PDF, DOCX, XLSX, TXT o CSV, y haz preguntas sobre su contenido. El asistente responde
+PDF, DOCX, XLSX, TXT, CSV o EPUB, y haz preguntas sobre su contenido. El asistente responde
 **exclusivamente** con información encontrada en tus documentos, citando las fuentes exactas, y
 declara explícitamente cuando no tiene suficiente información.
 
@@ -13,7 +13,7 @@ respuesta con un prompt estricto anti-alucinación**.
 
 | Capa | Tecnología | Por qué |
 |---|---|---|
-| Backend | **Python + FastAPI** | El ecosistema de parsing/RAG (pypdf, python-docx, openpyxl, chromadb, sentence-transformers) es nativamente Python. FastAPI aporta tipado, docs automáticas (OpenAPI) y async nativo. |
+| Backend | **Python + FastAPI** | El ecosistema de parsing/RAG (pypdf, python-docx, openpyxl, EbookLib, chromadb, sentence-transformers) es nativamente Python. FastAPI aporta tipado, docs automáticas (OpenAPI) y async nativo. |
 | Frontend | **Angular 18** (standalone components + signals) | Pedido explícito del proyecto; arquitectura modular con servicios tipados y componentes independientes. |
 | Vector store | **ChromaDB** (persistente en disco) | Persiste automáticamente, soporta borrado/filtrado por metadata (`doc_id`), ideal para CRUD de documentos individuales. |
 | Embeddings | **sentence-transformers** (`all-MiniLM-L6-v2`) | Modelo local, gratuito, rápido y sin necesidad de API key. |
@@ -30,7 +30,7 @@ private-rag/
 │   │   ├── dependencies.py      # Inyección de dependencias (singleton RagService)
 │   │   ├── models/schemas.py    # Modelos Pydantic (request/response)
 │   │   ├── ingestion/
-│   │   │   ├── parsers.py       # Extracción de texto: PDF, DOCX, XLSX, TXT, CSV
+│   │   │   ├── parsers.py       # Extracción de texto: PDF, DOCX, XLSX, TXT, CSV, EPUB
 │   │   │   └── chunking.py      # Text splitter recursivo con overlap
 │   │   ├── embeddings/
 │   │   │   └── embedder.py      # Wrapper de sentence-transformers
@@ -55,7 +55,7 @@ private-rag/
 │       └── features/
 │           ├── chat/            # Ventana de chat con citación de fuentes
 │           └── documents/       # Panel de subida/gestión de documentos
-├── sample_docs/                 # Documentos de prueba (PDF, DOCX, XLSX, TXT, CSV)
+├── sample_docs/                 # Documentos de prueba (PDF, DOCX, XLSX, TXT, CSV, EPUB)
 ├── docker-compose.yml
 └── README.md
 ```
@@ -64,11 +64,44 @@ private-rag/
 
 ### Requisitos previos
 
-- **Python 3.11+**
+- **Python 3.11+** (recomendado 3.11–3.12; ver nota sobre Python 3.14 más abajo)
 - **Node.js 20+** y npm
 - **Ollama** (opción por defecto, 100% local y gratis) → [ollama.com](https://ollama.com), o una **API key de OpenAI** si prefieres usar `LLM_PROVIDER=openai`
 
-### 1. Backend
+> **Python 3.14**: algunas dependencias pineadas a versiones antiguas (`pandas`, `pydantic`,
+> `EbookLib`, `chromadb`) no publican wheel precompilada para 3.14 en Windows y pip intentaría
+> compilarlas desde código fuente (requiere Visual Studio Build Tools). `requirements.txt` ya usa
+> mínimos (`>=`) para esos paquetes concretos, que resuelven a versiones con wheel disponible;
+> el resto mantiene versión exacta. Si usas Python 3.11–3.12 no deberías notar diferencia.
+
+> **Ollama, `OLLAMA_MODEL` debe coincidir EXACTO con `ollama list`**: si tienes más de una
+> instalación/instancia de Ollama en el sistema (por ejemplo el servicio de Windows y otra
+> lanzada manualmente), pueden escuchar en el mismo puerto pero servir modelos distintos.
+> Comprueba con `curl http://localhost:11434/api/tags` (o `ollama list` en la misma sesión que
+> arrancó el servidor) qué modelo está realmente disponible, y usa ese nombre completo tal cual
+> (p.ej. `llama3.2:3b`, no `llama3.2` a secas) en `OLLAMA_MODEL`.
+
+### Opción rápida: script de arranque
+
+Un único comando crea los entornos (venv + node_modules) si no existen, instala dependencias,
+comprueba Ollama y levanta backend + frontend en paralelo:
+
+```powershell
+# Windows
+./start.ps1
+```
+
+```bash
+# Linux/Mac
+./start.sh
+```
+
+Backend en `http://localhost:8000`, frontend en `http://localhost:4200`. Ctrl+C detiene ambos.
+Usa `-SkipInstall` (PowerShell) o `SKIP_INSTALL=1` (bash) para saltarte la instalación de
+dependencias en arranques posteriores. Requiere los mismos prerrequisitos que la instalación
+manual (Python, Node, y Ollama si aplica).
+
+### 1. Backend (manual, paso a paso)
 
 ```bash
 cd backend
@@ -105,7 +138,7 @@ OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o-mini
 ```
 
-### 2. Frontend
+### 2. Frontend (manual)
 
 ```bash
 cd frontend

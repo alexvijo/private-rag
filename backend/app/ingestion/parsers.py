@@ -10,7 +10,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
+from bs4 import BeautifulSoup
 from docx import Document as DocxDocument
+from ebooklib import ITEM_DOCUMENT
+from ebooklib.epub import EpubNav, read_epub
 from pypdf import PdfReader
 
 
@@ -30,7 +33,7 @@ class ExtractedSegment:
     location: str  # ej. "página 3", "hoja Ventas", "línea 1-50"
 
 
-SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".xlsx", ".xls", ".txt", ".csv"}
+SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".xlsx", ".xls", ".txt", ".csv", ".epub"}
 
 
 def parse_document(file_path: Path) -> list[ExtractedSegment]:
@@ -47,6 +50,8 @@ def parse_document(file_path: Path) -> list[ExtractedSegment]:
             return _parse_txt(file_path)
         if suffix == ".csv":
             return _parse_csv(file_path)
+        if suffix == ".epub":
+            return _parse_epub(file_path)
     except UnsupportedFileTypeError:
         raise
     except Exception as exc:  # noqa: BLE001 - queremos capturar cualquier fallo de parsing
@@ -118,3 +123,31 @@ def _parse_csv(file_path: Path) -> list[ExtractedSegment]:
         raise DocumentParseError("El archivo CSV está vacío.")
     text = "\n".join(" | ".join(cell.strip() for cell in row) for row in rows)
     return [ExtractedSegment(text=text, location="documento completo")]
+
+
+def _parse_epub(file_path: Path) -> list[ExtractedSegment]:
+    book = read_epub(str(file_path), options={"ignore_ncx": True})
+
+    segments = []
+    index = 0
+    for item in book.get_items_of_type(ITEM_DOCUMENT):
+        # El documento de navegación (tabla de contenidos) no aporta contenido real
+        if isinstance(item, EpubNav):
+            continue
+
+        index += 1
+        soup = BeautifulSoup(item.get_content(), "html.parser")
+
+        # Título del capítulo si existe, si no se usa un índice secuencial
+        heading = soup.find(["h1", "h2", "h3"])
+        chapter_title = heading.get_text(strip=True) if heading else None
+        location = f"capítulo {index}" + (f" — {chapter_title}" if chapter_title else "")
+
+        text = soup.get_text(separator="\n").strip()
+        text = "\n".join(line.strip() for line in text.splitlines() if line.strip())
+        if text:
+            segments.append(ExtractedSegment(text=text, location=location))
+
+    if not segments:
+        raise DocumentParseError("El EPUB no contiene texto extraíble.")
+    return segments
