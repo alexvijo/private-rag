@@ -53,13 +53,20 @@ class ChromaStore:
             metadatas=metadatas,
         )
 
-    def query(self, query_embedding: list[float], top_k: int) -> list[RetrievedChunk]:
+    def query(
+        self,
+        query_embedding: list[float],
+        top_k: int,
+        doc_ids: list[str] | None = None,
+    ) -> list[RetrievedChunk]:
         count = self._collection.count()
         if count == 0:
             return []
+        where = {"doc_id": {"$in": doc_ids}} if doc_ids else None
         result = self._collection.query(
             query_embeddings=[query_embedding],
             n_results=min(top_k, count),
+            where=where,
         )
         chunks: list[RetrievedChunk] = []
         docs = result.get("documents", [[]])[0]

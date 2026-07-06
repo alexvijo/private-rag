@@ -38,7 +38,8 @@ private-rag/
 │   │   │   └── chroma_store.py  # Acceso a ChromaDB (add/query/delete)
 │   │   ├── generation/
 │   │   │   ├── llm_client.py    # Cliente LLM (Ollama / OpenAI, intercambiable)
-│   │   │   └── prompt.py        # Prompt estricto anti-alucinación
+│   │   │   ├── prompt.py        # Prompt estricto anti-alucinación (+ variante con búsqueda web)
+│   │   │   └── web_search.py    # Búsqueda web vía DuckDuckGo (sin API key)
 │   │   ├── routers/
 │   │   │   ├── documents.py     # Endpoints: upload, list, delete, reindex
 │   │   │   └── chat.py          # Endpoint: chat
@@ -51,7 +52,7 @@ private-rag/
 │   └── src/app/
 │       ├── core/
 │       │   ├── models/          # Interfaces TS compartidas
-│       │   └── services/        # document.service.ts, chat.service.ts
+│       │   └── services/        # document.service.ts, chat.service.ts, selected-documents.service.ts
 │       └── features/
 │           ├── chat/            # Ventana de chat con citación de fuentes
 │           └── documents/       # Panel de subida/gestión de documentos
@@ -126,7 +127,7 @@ La API queda disponible en `http://localhost:8000` (documentación interactiva e
 **Si usas Ollama** (por defecto), en otra terminal:
 
 ```bash
-ollama pull llama3.2
+ollama pull llama3.2:3b
 ollama serve      # normalmente ya se ejecuta como servicio tras instalar Ollama
 ```
 
@@ -179,6 +180,24 @@ contenedores.
 5. Haz clic en "Ver fuentes" bajo cualquier respuesta para ver los fragmentos exactos usados.
 6. Usa "Reindexar todo" tras cambiar `CHUNK_SIZE`/`CHUNK_OVERLAP` en `.env`, o "Borrar índice"
    para empezar de cero.
+7. Marca documentos concretos con checkbox para acotar la búsqueda, activa "Buscar en la web" si
+   necesitas complementar con información externa, o cambia de modelo LLM desde el desplegable —
+   ver detalle de cada función a continuación.
+
+## Funcionalidades del chat
+
+- **Selector de modelo LLM**: si usas Ollama, el desplegable sobre el chat lista los modelos
+  descargados (`ollama list`) y permite elegir uno distinto al de `.env` para una pregunta puntual.
+- **Estado de conexión**: un indicador junto al selector muestra si el backend y el proveedor LLM
+  responden (`checking` / `ok` / `degraded` / `error`), refrescado periódicamente.
+- **Cancelar solicitud**: mientras el asistente está generando una respuesta, un botón permite
+  abortar la petición en curso.
+- **Selección de documentos**: marca uno o varios documentos con checkbox en el panel lateral para
+  limitar el retrieval solo a esos ficheros (por defecto se consulta todo el índice).
+- **Búsqueda web (opcional)**: activa el interruptor "Buscar en la web" para complementar el
+  contexto con resultados de DuckDuckGo (sin API key) y permitir que el modelo use también
+  conocimiento externo, no solo tus documentos. Con esta opción activa se desactiva el
+  comportamiento estrictamente anti-alucinación descrito más abajo.
 
 ## Variables de entorno principales (`backend/.env`)
 
@@ -186,9 +205,10 @@ contenedores.
 |---|---|---|
 | `CHUNK_SIZE` / `CHUNK_OVERLAP` | Tamaño de chunk y solapamiento (caracteres) | `1000` / `150` |
 | `EMBEDDING_MODEL` | Modelo de sentence-transformers | `all-MiniLM-L6-v2` |
-| `TOP_K` | Nº de chunks recuperados por pregunta | `4` |
+| `TOP_K` | Nº de chunks recuperados por pregunta | `6` |
+| `MAX_CONTEXT_TOKENS` | Límite de tokens del contexto recuperado | `8000` |
 | `LLM_PROVIDER` | `ollama` u `openai` | `ollama` |
-| `OLLAMA_MODEL` | Modelo servido por Ollama | `llama3.2` |
+| `OLLAMA_MODEL` | Modelo servido por Ollama (tag exacto de `ollama list`) | `llama3.2:3b` |
 | `OPENAI_MODEL` | Modelo de OpenAI (si aplica) | `gpt-4o-mini` |
 | `LLM_TEMPERATURE` | Temperatura de generación | `0.1` |
 
@@ -201,7 +221,8 @@ contenedores.
 | `DELETE` | `/api/documents/{doc_id}` | Elimina un documento y sus chunks |
 | `POST` | `/api/documents/reindex` | Reindexa todos los documentos ya subidos |
 | `DELETE` | `/api/documents` | Borra completamente el índice |
-| `POST` | `/api/chat` | `{ "question": "...", "top_k": 4 }` → respuesta + fuentes |
+| `POST` | `/api/chat` | `{ "question", "top_k", "model", "web_search", "doc_ids" }` → respuesta + fuentes (documentos y/o web) |
+| `GET` | `/api/chat/models` | Lista los modelos disponibles del proveedor LLM activo (solo Ollama expone listado) |
 | `GET` | `/api/health` | Estado del servicio, proveedor LLM activo, nº de documentos/chunks |
 
 ## Comportamiento anti-alucinación
@@ -216,6 +237,11 @@ El prompt de sistema (`backend/app/generation/prompt.py`) instruye al LLM a:
 Además, `rag_service.py` aplica un **umbral mínimo de similitud coseno** (`MIN_RELEVANCE_SCORE =
 0.15`): si ningún chunk recuperado supera ese umbral, ni siquiera se llama al LLM — se devuelve
 directamente la respuesta de "sin contexto", evitando alucinaciones por chunks irrelevantes.
+
+Este comportamiento estricto aplica cuando **"Buscar en la web" está desactivado** (por defecto).
+Si se activa esa opción (`web_search: true`), el sistema usa un prompt distinto
+(`SYSTEM_PROMPT_WEB`) que sí permite complementar los documentos con resultados de búsqueda web y
+conocimiento general del modelo.
 
 ## Recomendaciones de mejoras futuras
 

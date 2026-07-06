@@ -42,9 +42,9 @@
         <div class="bubble" [class.no-context]="msg.hasSufficientContext === false">
           <p class="msg-text">{{ msg.text }}</p>
 
-          @if (msg.sources && msg.sources.length > 0) {
+          @if ((msg.sources && msg.sources.length > 0) || (msg.webSources && msg.webSources.length > 0)) {
             <button class="sources-toggle" (click)="toggleSources($index)">
-              {{ expandedSources.has($index) ? 'Ocultar fuentes' : 'Ver ' + msg.sources.length + ' fuente(s)' }}
+              {{ expandedSources.has($index) ? 'Ocultar fuentes' : 'Ver fuentes' }}
             </button>
 
             @if (expandedSources.has($index)) {
@@ -59,6 +59,15 @@
                       <span class="source-location">{{ src.location }}</span>
                     }
                     <p class="source-text">{{ src.text }}</p>
+                  </div>
+                }
+                @for (src of msg.webSources; track src.url) {
+                  <div class="source-item web-source">
+                    <div class="source-header">
+                      <span class="source-file">🌐 {{ src.title }}</span>
+                    </div>
+                    <a class="source-location" [href]="src.url" target="_blank" rel="noopener noreferrer">{{ src.url }}</a>
+                    <p class="source-text">{{ src.snippet }}</p>
                   </div>
                 }
               </div>
@@ -80,6 +89,15 @@
   </div>
 
   <div class="composer">
+    <button
+      type="button"
+      class="web-toggle"
+      [class.active]="webSearchEnabled()"
+      (click)="toggleWebSearch()"
+      [title]="webSearchEnabled() ? 'Acceso a internet activado: el modelo puede usar la web además de tus documentos' : 'Acceso a internet desactivado: solo responde con tus documentos'"
+    >
+      🌐 Acceso a internet
+    </button>
     <textarea
       [(ngModel)]="currentQuestion"
       (keydown)="onKeydown($event)"

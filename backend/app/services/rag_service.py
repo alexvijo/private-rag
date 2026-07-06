@@ -8,6 +8,7 @@ Flujo (imitando el tutorial clásico de RAG):
   5. Ante una pregunta: embeder la pregunta, recuperar los chunks más relevantes.
   6. Construir un prompt estricto con ese contexto y generar la respuesta final.
 """
+import asyncio
 import logging
 import shutil
 import uuid
@@ -18,15 +19,21 @@ from pathlib import Path
 from app.config import Settings
 from app.embeddings.embedder import get_embedder
 from app.generation.llm_client import LLMError, get_llm_client
-from app.generation.prompt import NO_CONTEXT_ANSWER, SYSTEM_PROMPT, build_user_prompt
+from app.generation.prompt import (
+    NO_CONTEXT_ANSWER,
+    SYSTEM_PROMPT,
+    SYSTEM_PROMPT_WEB,
+    build_user_prompt,
+)
 from app.generation.token_counter import count_tokens
+from app.generation.web_search import search_web
 from app.ingestion.chunking import chunk_segments
 from app.ingestion.parsers import (
     DocumentParseError,
     UnsupportedFileTypeError,
     parse_document,
 )
-from app.models.schemas import ChatResponse, DocumentInfo, SourceChunk
+from app.models.schemas import ChatResponse, DocumentInfo, SourceChunk, WebSource
 from app.vectorstore.chroma_store import ChromaStore
 
 logger = logging.getLogger(__name__)
@@ -179,16 +186,34 @@ class RagService:
     # ------------------------------------------------------------------ #
     # Retrieval + generación
     # ------------------------------------------------------------------ #
-    def answer_question(
-        self, question: str, top_k: int | None = None, model: str | None = None
+    def _retrieve(self, question: str, k: int, doc_ids: list[str] | None) -> list:
+        """Embede la pregunta y consulta el vector store (CPU-bound; se ejecuta
+        en un thread aparte para no bloquear el event loop)."""
+        query_embedding = self.embedder.embed_query(question)
+        return self.store.query(query_embedding, top_k=k, doc_ids=doc_ids)
+
+    async def answer_question(
+        self,
+        question: str,
+        top_k: int | None = None,
+        model: str | None = None,
+        web_search: bool = False,
+        doc_ids: list[str] | None = None,
     ) -> ChatResponse:
         k = top_k or self.settings.top_k
-        query_embedding = self.embedder.embed_query(question)
-        retrieved = self.store.query(query_embedding, top_k=k)
 
+        # Retrieval local (CPU) y búsqueda web (red) son independientes:
+        # lanzarlos en paralelo ahorra la latencia de red de DuckDuckGo antes
+        # de poder construir el prompt.
+        retrieve_task = asyncio.create_task(
+            asyncio.to_thread(self._retrieve, question, k, doc_ids)
+        )
+        web_task = asyncio.create_task(search_web(question)) if web_search else None
+
+        retrieved = await retrieve_task
         relevant = [r for r in retrieved if r.score >= MIN_RELEVANCE_SCORE]
 
-        if not relevant:
+        if not relevant and not web_search:
             return ChatResponse(
                 answer=NO_CONTEXT_ANSWER,
                 sources=[],
@@ -207,16 +232,31 @@ class RagService:
             used_chunks.append(r)
             total_tokens += block_tokens
 
+        web_results = []
+        if web_task is not None:
+            try:
+                web_results = await web_task
+            except LLMError as exc:
+                logger.warning("Búsqueda web falló, continuando sin ella: %s", exc)
+            for w in web_results:
+                block = f"[Fuente web: {w.title}, {w.url}]\n{w.snippet}"
+                block_tokens = count_tokens(block)
+                if total_tokens + block_tokens > self.settings.max_context_tokens and context_blocks:
+                    break
+                context_blocks.append(block)
+                total_tokens += block_tokens
+
+        system_prompt = SYSTEM_PROMPT_WEB if web_search else SYSTEM_PROMPT
         user_prompt = build_user_prompt(question, context_blocks)
 
         try:
             llm = get_llm_client(self.settings, model_override=model)
-            answer = llm.generate(SYSTEM_PROMPT, user_prompt, self.settings.llm_temperature)
+            answer = await llm.generate(system_prompt, user_prompt, self.settings.llm_temperature)
         except LLMError as exc:
             logger.error("Error del LLM: %s", exc)
             raise
 
-        is_no_context = answer.strip() == NO_CONTEXT_ANSWER
+        is_no_context = not web_search and answer.strip() == NO_CONTEXT_ANSWER
 
         sources = [
             SourceChunk(
@@ -229,28 +269,32 @@ class RagService:
             )
             for r in used_chunks
         ]
+        web_sources = [
+            WebSource(title=w.title, url=w.url, snippet=w.snippet) for w in web_results
+        ]
 
         return ChatResponse(
             answer=answer,
             sources=[] if is_no_context else sources,
+            web_sources=[] if is_no_context else web_sources,
             has_sufficient_context=not is_no_context,
         )
 
     def stats(self) -> tuple[int, int]:
         return len(self._registry), self.store.count_chunks()
 
-    def list_available_models(self) -> list[str]:
+    async def list_available_models(self) -> list[str]:
         """Modelos disponibles en el proveedor LLM actual (solo Ollama expone listado)."""
         if self.settings.llm_provider.lower() != "ollama":
             return []
         llm = get_llm_client(self.settings)
-        return llm.list_models()
+        return await llm.list_models()
 
-    def check_llm_reachable(self) -> bool:
+    async def check_llm_reachable(self) -> bool:
         """Comprueba si el proveedor LLM configurado responde, sin generar texto."""
         try:
             if self.settings.llm_provider.lower() == "ollama":
-                get_llm_client(self.settings).list_models()
+                await get_llm_client(self.settings).list_models()
             return True
         except LLMError:
             return False

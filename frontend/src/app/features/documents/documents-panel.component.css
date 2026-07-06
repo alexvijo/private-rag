@@ -84,6 +84,13 @@ h2 {
   margin-top: 24px;
 }
 
+.select-hint {
+  font-size: 11px;
+  color: #6b7180;
+  line-height: 1.4;
+  margin: 0 0 4px;
+}
+
 .doc-item {
   display: flex;
   align-items: center;
@@ -93,6 +100,14 @@ h2 {
   border: 1px solid #23262f;
   border-radius: 8px;
   padding: 10px 12px;
+}
+
+.doc-checkbox {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: #6c8dff;
 }
 
 .doc-info {

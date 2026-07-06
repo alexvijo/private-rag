@@ -17,7 +17,13 @@ class Embedder:
         """Genera embeddings normalizados para una lista de textos."""
         if not texts:
             return []
-        vectors = self._model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
+        # batch_size mayor al default (32) reduce el overhead de Python entre
+        # lotes en documentos grandes (cientos/miles de chunks) sin afectar
+        # al resultado, ya que cada texto se sigue embediendo de forma
+        # independiente dentro del batch.
+        vectors = self._model.encode(
+            texts, batch_size=64, normalize_embeddings=True, show_progress_bar=False
+        )
         return vectors.tolist()
 
     def embed_query(self, text: str) -> list[float]:

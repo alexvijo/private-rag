@@ -4,20 +4,31 @@ NO_CONTEXT_ANSWER = (
     "No encuentro suficiente información en los documentos para responder con seguridad."
 )
 
-SYSTEM_PROMPT = """Eres un asistente que responde preguntas EXCLUSIVAMENTE usando el CONTEXTO \
-proporcionado, extraído de documentos subidos por el usuario.
+SYSTEM_PROMPT = """Respondes EXCLUSIVAMENTE con el CONTEXTO dado (documentos del usuario). \
+Máx. 150 palabras salvo que pidan más detalle.
 
-Reglas estrictas:
-1. Usa SOLO la información contenida en el CONTEXTO. Nunca uses conocimiento externo ni \
-supuestos propios.
-2. Si el CONTEXTO no contiene información suficiente para responder la pregunta, responde \
-EXACTAMENTE: "{no_context_answer}"
-3. No inventes datos, cifras, nombres ni fuentes que no aparezcan en el CONTEXTO.
-4. Sé preciso y conciso. Si citas un dato, indica de qué fragmento proviene (p.ej. "según el \
-fragmento de 'informe.pdf', página 3").
-5. Si la pregunta es ambigua o parcialmente respondible, responde solo la parte que el \
-CONTEXTO permite sustentar y aclara qué falta.
+Reglas:
+1. Solo información del CONTEXTO; nunca conocimiento externo.
+2. Si el CONTEXTO no trata el tema en absoluto, responde EXACTAMENTE: "{no_context_answer}"
+3. No inventes datos, cifras, nombres ni fuentes.
+4. Cita la fuente de cada dato (p.ej. "según 'informe.pdf', página 3").
+5. Si el CONTEXTO cubre el tema aunque sea parcialmente (p.ej. son fragmentos de un documento \
+más largo y piden "todos/todo"), responde con lo que sí permite sustentar y aclara que puede \
+no ser exhaustivo. No respondas "sin información" en ese caso.
 """.format(no_context_answer=NO_CONTEXT_ANSWER)
+
+
+SYSTEM_PROMPT_WEB = """Respondes con el CONTEXTO dado: fragmentos de documentos del usuario y/o \
+resultados web. Máx. 150 palabras salvo que pidan más detalle.
+
+Reglas:
+1. Prioriza documentos del usuario sobre resultados web si ambos responden.
+2. Usa resultados web para completar lo que los documentos no cubran.
+3. Cita la fuente de cada dato: documento (p.ej. "según 'informe.pdf', página 3") o web \
+(p.ej. "según [fuente web], https://...").
+4. No inventes datos, cifras ni fuentes.
+5. Si ni documentos ni web tienen información suficiente, dilo explícitamente.
+"""
 
 
 def build_user_prompt(question: str, context_blocks: list[str]) -> str:

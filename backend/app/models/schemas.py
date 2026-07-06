@@ -35,10 +35,20 @@ class ChatRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=2000)
     top_k: int | None = Field(default=None, ge=1, le=20)
     model: str | None = Field(default=None, description="Override del modelo LLM para esta pregunta")
+    web_search: bool = Field(
+        default=False,
+        description="Si es true, añade resultados de búsqueda web al contexto y permite al "
+        "modelo usar conocimiento fuera de los documentos.",
+    )
+    doc_ids: list[str] | None = Field(
+        default=None,
+        description="Si se indica, el retrieval se limita a estos documentos "
+        "(p.ej. los seleccionados por checkbox en el panel de documentos).",
+    )
 
 
 class SourceChunk(BaseModel):
-    """Fragmento de contexto usado para sustentar una respuesta."""
+    """Fragmento de un documento usado para sustentar una respuesta."""
 
     doc_id: str
     filename: str
@@ -48,9 +58,18 @@ class SourceChunk(BaseModel):
     location: str | None = None  # p.ej. "página 3" o "hoja Ventas"
 
 
+class WebSource(BaseModel):
+    """Resultado web usado para sustentar una respuesta."""
+
+    title: str
+    url: str
+    snippet: str
+
+
 class ChatResponse(BaseModel):
     answer: str
     sources: list[SourceChunk]
+    web_sources: list[WebSource] = Field(default_factory=list)
     has_sufficient_context: bool
 
 

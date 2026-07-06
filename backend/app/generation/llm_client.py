@@ -5,11 +5,16 @@ necesidad de tocar código. Ollama es el valor por defecto porque es 100%
 local y gratuito (no requiere API key).
 """
 from abc import ABC, abstractmethod
+from functools import lru_cache
 
 import httpx
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from app.config import Settings
+
+# Cliente HTTP compartido: reutiliza el pool de conexiones entre requests en
+# vez de abrir un socket TCP nuevo por cada llamada al LLM.
+_http_client = httpx.AsyncClient(timeout=120)
 
 
 class LLMError(Exception):
@@ -18,7 +23,7 @@ class LLMError(Exception):
 
 class LLMClient(ABC):
     @abstractmethod
-    def generate(self, system_prompt: str, user_prompt: str, temperature: float) -> str:
+    async def generate(self, system_prompt: str, user_prompt: str, temperature: float) -> str:
         """Genera una respuesta de texto a partir del prompt de sistema y usuario."""
 
 
@@ -28,9 +33,9 @@ class OllamaClient(LLMClient):
         self.model = model
 
     @retry(stop=stop_after_attempt(2), wait=wait_exponential(min=1, max=4))
-    def generate(self, system_prompt: str, user_prompt: str, temperature: float) -> str:
+    async def generate(self, system_prompt: str, user_prompt: str, temperature: float) -> str:
         try:
-            response = httpx.post(
+            response = await _http_client.post(
                 f"{self.base_url}/api/chat",
                 json={
                     "model": self.model,
@@ -59,10 +64,10 @@ class OllamaClient(LLMClient):
         except (KeyError, ValueError) as exc:
             raise LLMError(f"Respuesta inesperada de Ollama: {exc}") from exc
 
-    def list_models(self) -> list[str]:
+    async def list_models(self) -> list[str]:
         """Consulta los modelos disponibles en el servidor Ollama activo (`ollama list`)."""
         try:
-            response = httpx.get(f"{self.base_url}/api/tags", timeout=5)
+            response = await _http_client.get(f"{self.base_url}/api/tags", timeout=5)
             response.raise_for_status()
             data = response.json()
             return sorted(m["name"] for m in data.get("models", []))
@@ -76,15 +81,15 @@ class OpenAIClient(LLMClient):
             raise LLMError(
                 "LLM_PROVIDER=openai requiere OPENAI_API_KEY configurada en el archivo .env"
             )
-        from openai import OpenAI
+        from openai import AsyncOpenAI
 
-        self.client = OpenAI(api_key=api_key)
+        self.client = AsyncOpenAI(api_key=api_key)
         self.model = model
 
     @retry(stop=stop_after_attempt(2), wait=wait_exponential(min=1, max=4))
-    def generate(self, system_prompt: str, user_prompt: str, temperature: float) -> str:
+    async def generate(self, system_prompt: str, user_prompt: str, temperature: float) -> str:
         try:
-            response = self.client.chat.completions.create(
+            response = await self.client.chat.completions.create(
                 model=self.model,
                 temperature=temperature,
                 messages=[
@@ -97,15 +102,26 @@ class OpenAIClient(LLMClient):
             raise LLMError(f"Error al llamar a OpenAI: {exc}") from exc
 
 
-def get_llm_client(settings: Settings, model_override: str | None = None) -> LLMClient:
-    """Factory que instancia el cliente LLM según LLM_PROVIDER.
+@lru_cache
+def _build_llm_client(provider: str, base_url: str, api_key: str, model: str) -> LLMClient:
+    if provider == "ollama":
+        return OllamaClient(base_url, model)
+    if provider == "openai":
+        return OpenAIClient(api_key, model)
+    raise LLMError(f"LLM_PROVIDER desconocido: '{provider}'. Usa 'ollama' u 'openai'.")
 
-    `model_override` permite elegir un modelo distinto al de .env para una
-    request puntual (p.ej. el selector de modelos de Ollama en el frontend).
+
+def get_llm_client(settings: Settings, model_override: str | None = None) -> LLMClient:
+    """Factory que instancia (y cachea) el cliente LLM según LLM_PROVIDER.
+
+    Cachear por (provider, modelo) evita reconstruir el cliente (y, en el
+    caso de OpenAI, su pool HTTP interno) en cada request. `model_override`
+    permite elegir un modelo distinto al de .env para una request puntual
+    (p.ej. el selector de modelos en el frontend), con su propia entrada
+    cacheada.
     """
     provider = settings.llm_provider.lower()
-    if provider == "ollama":
-        return OllamaClient(settings.ollama_base_url, model_override or settings.ollama_model)
-    if provider == "openai":
-        return OpenAIClient(settings.openai_api_key, model_override or settings.openai_model)
-    raise LLMError(f"LLM_PROVIDER desconocido: '{provider}'. Usa 'ollama' u 'openai'.")
+    model = model_override or (
+        settings.ollama_model if provider == "ollama" else settings.openai_model
+    )
+    return _build_llm_client(provider, settings.ollama_base_url, settings.openai_api_key, model)

@@ -30,15 +30,24 @@ export interface SourceChunk {
   location: string | null;
 }
 
+export interface WebSource {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
 export interface ChatRequest {
   question: string;
   top_k?: number;
   model?: string;
+  web_search?: boolean;
+  doc_ids?: string[];
 }
 
 export interface ChatResponse {
   answer: string;
   sources: SourceChunk[];
+  web_sources: WebSource[];
   has_sufficient_context: boolean;
 }
 
@@ -61,6 +70,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
   sources?: SourceChunk[];
+  webSources?: WebSource[];
   hasSufficientContext?: boolean;
   timestamp: Date;
 }

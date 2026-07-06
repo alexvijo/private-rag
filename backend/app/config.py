@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
 
     # Retrieval
-    top_k: int = 4
+    top_k: int = 6
 
     # LLM
     llm_provider: str = "ollama"  # "ollama" | "openai"
@@ -37,7 +37,7 @@ class Settings(BaseSettings):
 
     # Generación
     llm_temperature: float = 0.1
-    max_context_tokens: int = 3000
+    max_context_tokens: int = 8000
 
     @property
     def cors_origins_list(self) -> list[str]:

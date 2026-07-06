@@ -15,7 +15,13 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 @router.post("", response_model=ChatResponse)
 async def chat(request: ChatRequest, rag_service: RagServiceDep) -> ChatResponse:
     try:
-        return rag_service.answer_question(request.question, request.top_k, request.model)
+        return await rag_service.answer_question(
+            request.question,
+            request.top_k,
+            request.model,
+            request.web_search,
+            request.doc_ids,
+        )
     except LLMError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
@@ -29,7 +35,7 @@ async def list_models(rag_service: RagServiceDep) -> ModelsResponse:
     settings = get_settings()
     current_model = settings.ollama_model if settings.llm_provider.lower() == "ollama" else settings.openai_model
     try:
-        available = rag_service.list_available_models()
+        available = await rag_service.list_available_models()
     except LLMError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     return ModelsResponse(

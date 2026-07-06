@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { DocumentService } from '../../core/services/document.service';
+import { SelectedDocumentsService } from '../../core/services/selected-documents.service';
 import { DocumentInfo } from '../../core/models/api.models';
 
 @Component({
@@ -12,6 +13,7 @@ import { DocumentInfo } from '../../core/models/api.models';
 })
 export class DocumentsPanelComponent implements OnInit {
   private documentService = inject(DocumentService);
+  selection = inject(SelectedDocumentsService);
 
   documents = signal<DocumentInfo[]>([]);
   isUploading = signal(false);
@@ -27,7 +29,10 @@ export class DocumentsPanelComponent implements OnInit {
 
   refreshDocuments(): void {
     this.documentService.list().subscribe({
-      next: (res) => this.documents.set(res.documents),
+      next: (res) => {
+        this.documents.set(res.documents);
+        this.selection.pruneToExisting(res.documents.map((d) => d.doc_id));
+      },
       error: () => this.errorMessages.set(['No se pudo conectar con el backend. ¿Está en ejecución?']),
     });
   }

@@ -3,6 +3,7 @@ import { Component, ElementRef, OnDestroy, OnInit, ViewChild, inject, signal } f
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { ChatService } from '../../core/services/chat.service';
+import { SelectedDocumentsService } from '../../core/services/selected-documents.service';
 import { ChatMessage } from '../../core/models/api.models';
 
 type HealthState = 'checking' | 'ok' | 'degraded' | 'error';
@@ -16,6 +17,7 @@ type HealthState = 'checking' | 'ok' | 'degraded' | 'error';
 })
 export class ChatWindowComponent implements OnInit, OnDestroy {
   private chatService = inject(ChatService);
+  private selection = inject(SelectedDocumentsService);
   private healthPoll?: ReturnType<typeof setInterval>;
   private askSubscription?: Subscription;
 
@@ -32,6 +34,7 @@ export class ChatWindowComponent implements OnInit, OnDestroy {
 
   availableModels = signal<string[]>([]);
   selectedModel = signal<string>('');
+  webSearchEnabled = signal<boolean>(false);
 
   ngOnInit(): void {
     this.refreshHealth();
@@ -80,36 +83,42 @@ export class ChatWindowComponent implements OnInit, OnDestroy {
     this.scrollToBottom();
 
     const model = this.selectedModel() || undefined;
+    const webSearch = this.webSearchEnabled();
+    const selectedDocIds = Array.from(this.selection.selectedDocIds());
+    const docIds = selectedDocIds.length > 0 ? selectedDocIds : undefined;
 
-    this.askSubscription = this.chatService.ask({ question, model }).subscribe({
-      next: (res) => {
-        this.messages.update((msgs) => [
-          ...msgs,
-          {
-            role: 'assistant',
-            text: res.answer,
-            sources: res.sources,
-            hasSufficientContext: res.has_sufficient_context,
-            timestamp: new Date(),
-          },
-        ]);
-        this.isThinking.set(false);
-        this.scrollToBottom();
-      },
-      error: (err) => {
-        this.messages.update((msgs) => [
-          ...msgs,
-          {
-            role: 'assistant',
-            text: `Error: ${err?.error?.detail ?? 'No se pudo obtener respuesta del servidor.'}`,
-            hasSufficientContext: false,
-            timestamp: new Date(),
-          },
-        ]);
-        this.isThinking.set(false);
-        this.scrollToBottom();
-      },
-    });
+    this.askSubscription = this.chatService
+      .ask({ question, model, web_search: webSearch, doc_ids: docIds })
+      .subscribe({
+        next: (res) => {
+          this.messages.update((msgs) => [
+            ...msgs,
+            {
+              role: 'assistant',
+              text: res.answer,
+              sources: res.sources,
+              webSources: res.web_sources,
+              hasSufficientContext: res.has_sufficient_context,
+              timestamp: new Date(),
+            },
+          ]);
+          this.isThinking.set(false);
+          this.scrollToBottom();
+        },
+        error: (err) => {
+          this.messages.update((msgs) => [
+            ...msgs,
+            {
+              role: 'assistant',
+              text: `Error: ${err?.error?.detail ?? 'No se pudo obtener respuesta del servidor.'}`,
+              hasSufficientContext: false,
+              timestamp: new Date(),
+            },
+          ]);
+          this.isThinking.set(false);
+          this.scrollToBottom();
+        },
+      });
   }
 
   stopRequest(): void {
@@ -127,6 +136,10 @@ export class ChatWindowComponent implements OnInit, OnDestroy {
       },
     ]);
     this.scrollToBottom();
+  }
+
+  toggleWebSearch(): void {
+    this.webSearchEnabled.update((v) => !v);
   }
 
   onKeydown(event: KeyboardEvent): void {

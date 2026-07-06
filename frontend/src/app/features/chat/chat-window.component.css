@@ -272,6 +272,34 @@ h1 {
   border-top: 1px solid #23262f;
 }
 
+.web-toggle {
+  align-self: center;
+  background: transparent;
+  border: 1px solid #34394a;
+  color: #6b7180;
+  font-size: 12px;
+  white-space: nowrap;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.web-toggle:hover {
+  border-color: #6c8dff;
+  color: #a8adba;
+}
+
+.web-toggle.active {
+  background: rgba(62, 203, 113, 0.1);
+  border-color: #1f5a34;
+  color: #7fd8a0;
+}
+
+.source-item.web-source {
+  border-color: #1f3a5a;
+}
+
 textarea {
   flex: 1;
   resize: none;

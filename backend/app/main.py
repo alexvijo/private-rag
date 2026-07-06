@@ -45,7 +45,7 @@ async def health_check() -> HealthResponse:
     try:
         service = get_rag_service()
         doc_count, chunk_count = service.stats()
-        llm_reachable = service.check_llm_reachable()
+        llm_reachable = await service.check_llm_reachable()
         model_name = settings.ollama_model if settings.llm_provider.lower() == "ollama" else settings.openai_model
         return HealthResponse(
             status="ok" if llm_reachable else "degraded",

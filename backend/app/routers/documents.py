@@ -1,4 +1,5 @@
 """Endpoints para subir, listar, borrar y reindexar documentos."""
+import asyncio
 import logging
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -29,7 +30,11 @@ async def upload_documents(rag_service: RagServiceDep, files: list[UploadFile] =
                 errors.append(f"{file.filename}: el archivo está vacío.")
                 continue
 
-            info = rag_service.ingest_file(file.filename, content)
+            # Parseo + chunking + embeddings son CPU-bound y pueden tardar
+            # decenas de segundos con documentos grandes; se ejecutan en un
+            # thread aparte para no bloquear el event loop (y así el chat u
+            # otras peticiones pueden seguir atendiéndose mientras se indexa).
+            info = await asyncio.to_thread(rag_service.ingest_file, file.filename, content)
             indexed.append(info)
         except UnsupportedFileTypeError as exc:
             errors.append(f"{file.filename}: {exc}")
@@ -58,7 +63,7 @@ async def delete_document(doc_id: str, rag_service: RagServiceDep) -> DeleteResp
 @router.post("/reindex", response_model=ReindexResponse)
 async def reindex_documents(rag_service: RagServiceDep) -> ReindexResponse:
     """Borra el índice vectorial y reindexa todos los documentos ya subidos."""
-    doc_count, chunk_count = rag_service.reindex_all()
+    doc_count, chunk_count = await asyncio.to_thread(rag_service.reindex_all)
     return ReindexResponse(reindexed_documents=doc_count, total_chunks=chunk_count)
 
 
